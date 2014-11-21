@@ -78,7 +78,7 @@ public class DungeonGenerator
         this.map_width = map_width;
         this.map_height = map_height;
         this.map = new int[map_width, map_height];
-        this.room_count = (int)((map_width+map_height)*0.18);
+        this.room_count = (int)((map_width+map_height)*0.10);
         this.max_room_width = (int)(map_width/4)+1;
         this.max_room_height = (int)(map_height/4)+1;
         Console.WriteLine("room_count->{0}\nmax_room_width->{1}\nmax_room_height->{2}\n", room_count, max_room_width, max_room_height);
@@ -97,11 +97,11 @@ public class DungeonGenerator
             {
                 int original = map[newRoom.x, newRoom.y];
                 map[newRoom.x, newRoom.y] = (int)cellTypes.DEBUG;
-                encodeMap();
-                //Console.WriteLine();
-                //Console.WriteLine("Attempting to add Room...");
+                encodeRooms();
+                Console.WriteLine();
+                Console.WriteLine("Attempting to add Room...");
                 newRoom.print();
-                printMap();
+                printColoredMap();
                 map[newRoom.x, newRoom.y] = original;
                 System.Threading.Thread.Sleep(1000);
             }
@@ -112,7 +112,7 @@ public class DungeonGenerator
                 i--;
                 continue;
             }
-            // Shrink the room to ensure it doesn't share a wall with another (resulting in one big room)
+            // Shrink the room to ensure it doesn't share a wall with another
             newRoom.w--;
             newRoom.h--;
             rooms.Add(newRoom);
@@ -120,8 +120,8 @@ public class DungeonGenerator
             {
                 newRoom.print();
                 Console.WriteLine("Room {0} added", i);
-                encodeMap();
-                printMap();
+                encodeRooms();
+                printColoredMap();
             }
              
         }
@@ -156,7 +156,6 @@ public class DungeonGenerator
                 map[pointB.x, pointB.y] = (int)cellTypes.CORRIDOR;
             }
         }
-        encodeMap();
     }
 
     public void addWalls()
@@ -182,7 +181,7 @@ public class DungeonGenerator
                             int originalxxyy = map[xx, yy];
                             map[x, y] = (int)cellTypes.DEBUG;
                             map[xx, yy] = (int)cellTypes.DEBUG;
-                            printMap();
+                            printColoredMap();
                             map[x, y] = original;
                             map[xx, yy] = originalxxyy;
                              * */
@@ -193,16 +192,18 @@ public class DungeonGenerator
                                 // check if the empty cell found is N,E,S,or W of original cell
                                 int dir = 0;
                                 int type = 0;
-                                if (x - xx > 0) dir = (int)directions.W;
-                                else if (x - xx < 0) dir = (int)directions.E;
-                                else if (y - yy > 0) dir = (int)directions.N;
-                                else if (y - yy < 0) dir = (int)directions.S;
+                                if (x - xx > 0) dir = (int)directions.N;
+                                else if (x - xx < 0) dir = (int)directions.S;
+                                else if (y - yy > 0) dir = (int)directions.W;
+                                else if (y - yy < 0) dir = (int)directions.E;
                                 // N or S, HORZ_WALL
-                                if (dir == (int)directions.N || dir == (int)directions.S) type = (int)cellTypes.HORZ_WALL;
+                                if (dir == (int)directions.N || dir == (int)directions.S) 
+                                    type = (int)cellTypes.HORZ_WALL;
                                 // W or E, VERT_WALL
-                                else if (dir == (int)directions.W || dir == (int)directions.E) type = (int)cellTypes.VERT_WALL;
+                                else if (dir == (int)directions.W || dir == (int)directions.E) 
+                                    type = (int)cellTypes.VERT_WALL;
                                 map[xx,yy] = type;
-                                    */
+                                  */
                                 map[xx, yy] = (int)cellTypes.HORZ_WALL;
 
                             }
@@ -308,7 +309,7 @@ public class DungeonGenerator
         return nearestRoom;
     }
 
-    public void encodeMap()
+    public void encodeRooms()
     {
         int i = 0;
         foreach (Room room in rooms)
@@ -327,40 +328,112 @@ public class DungeonGenerator
         }
     }
 
-    public void printMap()
+    public void encodeWalls()
     {
-        /*Console.WriteLine("\nEmpty-{0}\nFloor-{1}\nCorridor-{2}\nVert_Wall-{3}\nHorz_Wall-{4}\nStart-{5}\nTopleft Room Corner-{6}",
-                            (int)cellTypes.EMPTY, (int)cellTypes.FLOOR, (int)cellTypes.CORRIDOR,
-                            (int)cellTypes.VERT_WALL, (int)cellTypes.HORZ_WALL, (int)cellTypes.START, (int)cellTypes.CORNER);
-         */
+        int prevCell = (int)cellTypes.EMPTY;
+        for (int x = 0; x < map_width; x++)
+        {
+            for (int y = 0; y < map_height; y++)
+            {
+                int curCell = map[x, y];             
+                if(curCell == (int)cellTypes.HORZ_WALL &&
+                    prevCell != (int)cellTypes.HORZ_WALL)
+                {
+                    if (y + 1 < map_height)
+                    {
+                        int nextCell = map[x, y + 1];
+                        if (nextCell != (int)cellTypes.HORZ_WALL)
+                            map[x, y] = (int)cellTypes.VERT_WALL;
+                    }
+                }
+                prevCell = curCell;
+            }
+        }
+    }
+
+    public void printColoredMap()
+    {
         for (int i = 0; i < map_width; i++)
         {
             for (int j = 0; j < map_height; j++)
             {
-                if (map[i, j] == (int)cellTypes.CORNER)
+                int cell = map[i,j];
+                ConsoleColor color = ConsoleColor.Gray;
+                switch(cell)
                 {
-                    ColoredConsoleWrite(ConsoleColor.Blue, map[i, j]);
+                    case (int)cellTypes.EMPTY:
+                        color = ConsoleColor.Gray;
+                        break;
+                    case (int)cellTypes.CORNER:
+                        color = ConsoleColor.Blue;
+                        break;
+                    case (int)cellTypes.FLOOR:
+                        color = ConsoleColor.Cyan;
+                        break;
+                    case (int)cellTypes.CORRIDOR:
+                        color = ConsoleColor.Green;
+                        break;
+                    case (int)cellTypes.VERT_WALL:
+                        color = ConsoleColor.Yellow;
+                        break;
+                    case (int)cellTypes.HORZ_WALL:
+                        color = ConsoleColor.Yellow;
+                        break;
+                    case (int)cellTypes.START:
+                        color = ConsoleColor.Magenta;
+                        break;
+                    case (int)cellTypes.DEBUG:
+                        color = ConsoleColor.Red;
+                        break;
+                    default:
+                        color = ConsoleColor.Gray;
+                        break;
                 }
-                else if(map[i,j] == (int)cellTypes.FLOOR)
+                ColoredConsoleWrite(color, cell);
+            }
+            Console.WriteLine();
+        }
+    }
+
+    public void printTextMap()
+    {
+        for (int i = 0; i < map_width; i++)
+        {
+            for (int j = 0; j < map_height; j++)
+            {
+                int cell = map[i, j];
+                char character = ' ';
+                switch (cell)
                 {
-                    ColoredConsoleWrite(ConsoleColor.Cyan, map[i, j]);
+                    case (int)cellTypes.EMPTY:
+                        character = ' ';
+                        break;
+                    case (int)cellTypes.CORNER:
+                        character = ' ';
+                        break;
+                    case (int)cellTypes.FLOOR:
+                        character = ' ';
+                        break;
+                    case (int)cellTypes.CORRIDOR:
+                        character = ' ';
+                        break;
+                    case (int)cellTypes.VERT_WALL:
+                        character = '|';
+                        break;
+                    case (int)cellTypes.HORZ_WALL:
+                        character = '-';
+                        break;
+                    case (int)cellTypes.START:
+                        character = '*';
+                        break;
+                    case (int)cellTypes.DEBUG:
+                        character = '$';
+                        break;
+                    default:
+                        character = ' ';
+                        break;
                 }
-                else if(map[i,j] == (int)cellTypes.CORRIDOR)
-                {
-                    ColoredConsoleWrite(ConsoleColor.Green, map[i, j]);
-                }
-                else if(map[i,j] == (int)cellTypes.DEBUG)
-                {
-                    ColoredConsoleWrite(ConsoleColor.Red, map[i, j]);
-                }
-                else if (map[i, j] == (int)cellTypes.HORZ_WALL)
-                {
-                    ColoredConsoleWrite(ConsoleColor.Yellow, map[i, j]);
-                }
-                else
-                {
-                    Console.Write(map[i, j]);
-                }
+                Console.Write(character);
             }
             Console.WriteLine();
         }
@@ -376,11 +449,11 @@ public class DungeonGenerator
         }
     }
 
-    public static void ColoredConsoleWrite(ConsoleColor color, int mapCode)
+    public static void ColoredConsoleWrite(ConsoleColor color, int cellType)
     {
         ConsoleColor originalColor = Console.ForegroundColor;
         Console.ForegroundColor = color;
-        Console.Write(mapCode);
+        Console.Write(cellType);
         Console.ForegroundColor = originalColor;
     }
 
@@ -393,7 +466,10 @@ public class DungeonGenerator
         DungeonGenerator generator = new DungeonGenerator(width, height, seed);
         generator.generateRooms();
         generator.connectRooms();
+        generator.encodeRooms();
         generator.addWalls();
-        generator.printMap();
+        generator.encodeWalls();
+        generator.printColoredMap();
+        generator.printTextMap();
     }
 }

@@ -57,6 +57,10 @@ enum directions : int
 
 public class DungeonGenerator
 {
+    private bool DEBUG = false;
+    private int seed;
+    Random rand;
+
     private int map_width;
     private int map_height;
     private int[,] map;
@@ -67,14 +71,16 @@ public class DungeonGenerator
     private int max_room_width;
     private int max_room_height;
 
-    public DungeonGenerator(int map_width, int map_height)
+    public DungeonGenerator(int map_width, int map_height, int seed)
 	{
+        this.seed = seed;
+        this.rand = new Random(seed);
         this.map_width = map_width;
         this.map_height = map_height;
-        map = new int[map_width, map_height];
+        this.map = new int[map_width, map_height];
         this.room_count = (int)((map_width+map_height)*0.18);
-        max_room_width = (int)(map_width/4)+1;
-        max_room_height = (int)(map_height/4)+1;
+        this.max_room_width = (int)(map_width/4)+1;
+        this.max_room_height = (int)(map_height/4)+1;
         Console.WriteLine("room_count->{0}\nmax_room_width->{1}\nmax_room_height->{2}\n", room_count, max_room_width, max_room_height);
         this.rooms = new ArrayList();
 	}
@@ -86,17 +92,19 @@ public class DungeonGenerator
         {
             Room newRoom = create_randomRoom();
             // If the room intersects with any others, or it is off the map, go back and try again
-            /*
-            int original = map[newRoom.x, newRoom.y];
-            map[newRoom.x, newRoom.y] = (int)cellTypes.DEBUG;
-            encodeMap();
-            //Console.WriteLine();
-            //Console.WriteLine("Attempting to add Room...");
-            newRoom.print();
-            printMap();
-            map[newRoom.x, newRoom.y] = original;
-             * */
-            //System.Threading.Thread.Sleep(1000);
+
+            if (DEBUG)
+            {
+                int original = map[newRoom.x, newRoom.y];
+                map[newRoom.x, newRoom.y] = (int)cellTypes.DEBUG;
+                encodeMap();
+                //Console.WriteLine();
+                //Console.WriteLine("Attempting to add Room...");
+                newRoom.print();
+                printMap();
+                map[newRoom.x, newRoom.y] = original;
+                System.Threading.Thread.Sleep(1000);
+            }
             if (roomIntersects(newRoom) || roomOffMap(newRoom))
             {
                 //Console.WriteLine("Room intersects", i);
@@ -108,12 +116,14 @@ public class DungeonGenerator
             newRoom.w--;
             newRoom.h--;
             rooms.Add(newRoom);
-            /*
-            newRoom.print();
-            //Console.WriteLine("Room {0} added", i);
-            encodeMap();
-            printMap();
-             * */
+            if (DEBUG)
+            {
+                newRoom.print();
+                Console.WriteLine("Room {0} added", i);
+                encodeMap();
+                printMap();
+            }
+             
         }
 
     }
@@ -121,7 +131,6 @@ public class DungeonGenerator
     /* Connect rooms with corridors */
     public void connectRooms()
     {
-        Random rand = new Random();
         foreach (Room roomA in rooms)
         {
             Room roomB = findNearestRoom(roomA);
@@ -251,7 +260,6 @@ public class DungeonGenerator
     /* Create and return a room with random co-odinates and dimensions */
     private Room create_randomRoom()
     {
-        Random rand = new Random();
         Room room = new Room();
         try
         {
@@ -380,8 +388,9 @@ public class DungeonGenerator
     {
         int width = Convert.ToInt32(args[0]);
         int height = Convert.ToInt32(args[1]);
+        int seed = Convert.ToInt32(args[2]);
         //Console.WriteLine("width: {0}, height: {0}", width, height);
-        DungeonGenerator generator = new DungeonGenerator(width, height);
+        DungeonGenerator generator = new DungeonGenerator(width, height, seed);
         generator.generateRooms();
         generator.connectRooms();
         generator.addWalls();

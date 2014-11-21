@@ -1,15 +1,12 @@
-﻿/* TODO: Dynamically set room_count, min_wall_length, max_wall_length, and default nearest_distance based on command line options 
- *      Encode separate types for vertical and horizontal walls
- *      Variable Corridor size
- *      Place an entrance
-        Optimization: 
+﻿/* TODO:
+   Optimization: 
+ * Restrictions: Each dimension must be at least 3
  */
 
 using System;
 using System.Collections;
 
-// map[y][x], y = row (height), x = column (width)
-
+/* Struct that represents each room */
 struct Room
 {
     public int x;
@@ -22,7 +19,7 @@ struct Room
         Console.WriteLine(" x->{0}\n y->{1}\n w->{2}\n h->{3}", this.x, this.y, this.w, this.h);
     }
 };
-
+/* Struct that represents a specific point in the map array*/
 struct Point
 {
     public int x;
@@ -34,7 +31,7 @@ struct Point
         this.y = y;
     }
 };
-
+/* Encodings for different cell types */
 enum cellTypes
 {
     EMPTY = 0,
@@ -45,14 +42,6 @@ enum cellTypes
     HORZ_WALL,
     START,
     DEBUG
-};
-
-enum directions : int 
-{ 
-    W = 1,
-    E,
-    N, 
-    S 
 };
 
 public class DungeonGenerator
@@ -67,7 +56,7 @@ public class DungeonGenerator
 
     private ArrayList rooms;
     private int room_count = 5;
-    private int min_wall_length = 2;
+    private int min_wall_length = 3;
     private int max_room_width;
     private int max_room_height;
 
@@ -78,10 +67,22 @@ public class DungeonGenerator
         this.map_width = map_width;
         this.map_height = map_height;
         this.map = new int[map_width, map_height];
+     
         this.room_count = (int)((map_width+map_height)*0.10);
+        
         this.max_room_width = (int)(map_width/4)+1;
         this.max_room_height = (int)(map_height/4)+1;
-        Console.WriteLine("room_count->{0}\nmax_room_width->{1}\nmax_room_height->{2}\n", room_count, max_room_width, max_room_height);
+        if (this.max_room_width < 2)
+        {
+            this.min_wall_length = 2;
+            this.max_room_width = 2;
+        }
+        if (this.max_room_height < 2)
+        {
+            this.min_wall_length = 2;
+            this.max_room_height = 2;
+        }
+        //Console.WriteLine("room_count->{0}\nmax_room_width->{1}\nmax_room_height->{2}\n", room_count, max_room_width, max_room_height);
         this.rooms = new ArrayList();
 	}
 
@@ -107,8 +108,6 @@ public class DungeonGenerator
             }
             if (roomIntersects(newRoom) || roomOffMap(newRoom))
             {
-                //Console.WriteLine("Room intersects", i);
-                //if (roomOffMap(newRoom)) Console.WriteLine("Room is off Map", i);
                 i--;
                 continue;
             }
@@ -139,7 +138,7 @@ public class DungeonGenerator
                                      rand.Next(roomA.y, roomA.y + roomA.h));
             Point pointB = new Point(rand.Next(roomB.x, roomB.x + roomB.w),
                                      rand.Next(roomB.y, roomB.y + roomB.h));
-            // Move the pointB closer and closer until it reaches pointA, drawing a corridor along the way
+            // Move the pointB closer and closer until it reaches pointA, encoding a corridor along the way
             while(pointA.x != pointB.x || pointA.y != pointB.y)
             {
                 if(pointA.x != pointB.x)
@@ -158,54 +157,33 @@ public class DungeonGenerator
         }
     }
 
+    /* Identify cells that should be a wall, and set them to type "HORZ_WALL" by default */
     public void addWalls()
     {
-        //Console.WriteLine("Adding walls...");
+        // For each cell
         for (int x=0; x < map_width; x++)
         {
             for (int y = 0; y < map_height; y++)
-            {                 
+            {          
+                // Assert that the current cell is a floor, corridor, corner, or start cell
                 if(map[x,y] == (int)cellTypes.FLOOR || 
                     map[x,y] == (int)cellTypes.CORRIDOR ||
                     map[x,y] == (int)cellTypes.CORNER ||
                     map[x, y] == (int)cellTypes.START)
                 { 
+                    // For each cell adjacent the current cell
                     for (int xx = x-1; xx <= x+1; xx++)
                     {
                         for(int yy = y-1; yy <= y+1; yy++)
                         {
-                            /*
-                            Console.WriteLine("Original cell: [{0},{1}]", x, y);
-                            Console.WriteLine("Current cell: [{0},{1}]",xx,yy);
-                            int original = map[x, y];
-                            int originalxxyy = map[xx, yy];
-                            map[x, y] = (int)cellTypes.DEBUG;
-                            map[xx, yy] = (int)cellTypes.DEBUG;
-                            printColoredMap();
-                            map[x, y] = original;
-                            map[xx, yy] = originalxxyy;
-                             * */
-                            //System.Threading.Thread.Sleep(2000);
-                            if (map[xx, yy] == (int)cellTypes.EMPTY)
+                            if (xx < map_width && xx >= 0 &&
+                                yy < map_height && yy >= 0)
                             {
-                                /*
-                                // check if the empty cell found is N,E,S,or W of original cell
-                                int dir = 0;
-                                int type = 0;
-                                if (x - xx > 0) dir = (int)directions.N;
-                                else if (x - xx < 0) dir = (int)directions.S;
-                                else if (y - yy > 0) dir = (int)directions.W;
-                                else if (y - yy < 0) dir = (int)directions.E;
-                                // N or S, HORZ_WALL
-                                if (dir == (int)directions.N || dir == (int)directions.S) 
-                                    type = (int)cellTypes.HORZ_WALL;
-                                // W or E, VERT_WALL
-                                else if (dir == (int)directions.W || dir == (int)directions.E) 
-                                    type = (int)cellTypes.VERT_WALL;
-                                map[xx,yy] = type;
-                                  */
-                                map[xx, yy] = (int)cellTypes.HORZ_WALL;
-
+                                // If the adjacent cell is empty, make a horizontal wall
+                                if (map[xx, yy] == (int)cellTypes.EMPTY)
+                                {
+                                    map[xx, yy] = (int)cellTypes.HORZ_WALL;
+                                }
                             }
                         }
                     }
@@ -214,14 +192,14 @@ public class DungeonGenerator
         }
     }
 
-    /* Check if given room intersects with any others in the list of rooms created so far */
+    /* Check if parameter room intersects with any others in the list of rooms created so far */
     private bool roomIntersects(Room room)
     {
         foreach (Room curRoom in rooms)
         {
             // If the current room is the parameter room, ignore it
             if(room.Equals(curRoom)) continue;
-            /*
+            /* //Debug code
             Console.WriteLine("room's bottom edge->{0}",(room.x + room.w)-1);
             Console.WriteLine("room's top edge->{0}", room.x);
             Console.WriteLine("room's right edge->{0}", (room.y + room.h)-1);
@@ -233,7 +211,7 @@ public class DungeonGenerator
             Console.WriteLine("curRoom's right edge->{0}", (curRoom.y + curRoom.h)-1);
              * */
             
-            
+            // Box collision checking
             if(!((room.x + room.w)-1 < curRoom.x) &&    // room's right edge is left of curRoom's left
                  !(room.x > (curRoom.x + curRoom.w)-1) && // room's left edge is right of curRoom's right
                  !((room.y + room.h)-1 < curRoom.y) &&   // room's bottom edge is above curRoom's top
@@ -258,43 +236,55 @@ public class DungeonGenerator
         return false;
     }
 
-    /* Create and return a room with random co-odinates and dimensions */
+    /* Create and return a room with random co-ordinates and dimensions */
     private Room create_randomRoom()
     {
         Room room = new Room();
         try
         {
-            
+            // Init random room
             room.x = rand.Next(1, map_width);
             room.y = rand.Next(1, map_height);
-            room.w = rand.Next(min_wall_length + 1, max_room_width);
-            room.h = rand.Next(min_wall_length + 1, max_room_height);
-            //Console.WriteLine("Created room:\n w->{0}\n h->{1}", room.w, room.h);
+            room.w = rand.Next(min_wall_length, max_room_width);
+            room.h = rand.Next(min_wall_length, max_room_height);
         }
         catch (ArgumentOutOfRangeException e)
         {
-            Console.WriteLine("Exception: {0}", e);
-            
-            
+            // Shut up compiler warning
+            e.ToString();
+            /*
+            Console.WriteLine();
+            Console.WriteLine("x min {0}, x max {1}", 1, map_width);
+            Console.WriteLine("width min {0}, width max {1}", min_wall_length, max_room_width + 1);
+            Console.WriteLine("y min {0}, y max {1}", 1, map_height);
+            Console.WriteLine("height min {0}, height max {1}", min_wall_length, max_room_height + 1);
+             * */
+            // If the max value is smaller than the min, try again with the max incremented
+            room.w = rand.Next(min_wall_length, max_room_width + 1);
+            room.h = rand.Next(min_wall_length, max_room_height + 1);     
         }
-        //Console.WriteLine("Created room:");
-        //room.print();
         return room;
     }
 
+    /* In the list of created rooms, find and return the nearest room to the parameter room */
     private Room findNearestRoom(Room room)
     {
+        // Midpoint of parameter room
         Point midPoint = new Point(room.x + (room.w / 2),
                                     room.y + (room.h / 2));
         Room nearestRoom = new Room();
-        int nearest_distance = 100000;
-
+        int nearest_distance = 1000000;
+        // For each room
         foreach (Room curRoom in rooms)
         {
+            // If the current room is the parameter room, ignore it
             if (curRoom.Equals(room)) continue;
+            // Current room's midpoint
             Point cur_midPoint = new Point(curRoom.x + (curRoom.w / 2),
                                             curRoom.y + (curRoom.h / 2));
+            // Calculate distance between parameter room and current room
             int distance = (int)Math.Sqrt((midPoint.x - cur_midPoint.x)^2 + (midPoint.y - cur_midPoint.y)^2);
+            // Check if the current room qualifies as the new closest room
             if(distance < nearest_distance)
             {
                 nearest_distance = distance;
@@ -309,41 +299,55 @@ public class DungeonGenerator
         return nearestRoom;
     }
 
+    /* Encode the map array with the set of rooms */
     public void encodeRooms()
     {
-        int i = 0;
         foreach (Room room in rooms)
         {
             for (int x = room.x; x < room.x + room.w; x++)
             {
                 for (int y = room.y; y < room.y + room.h; y++)
                 {
-                    //Console.WriteLine("x: {0}, y: {1}", x, y);
                     map[x, y] = (int)cellTypes.FLOOR;
                     if (x == room.x && y == room.y)
+                    {
+                        // Encode top-left corner of the room
                         map[x, y] = (int)cellTypes.CORNER;
+                        // If the current room is the first room, encode the start point
+                        if (room.Equals((Room)rooms[0]))
+                            map[x, y] = (int)cellTypes.START;
+                    }
                 }
             }
-            i++;
         }
     }
 
+    /* Encode the map array with separate types for vertical and horizontal walls */
     public void encodeWalls()
     {
         int prevCell = (int)cellTypes.EMPTY;
+        // For each cell
         for (int x = 0; x < map_width; x++)
         {
             for (int y = 0; y < map_height; y++)
             {
-                int curCell = map[x, y];             
+                int curCell = map[x, y];        
+                // If the current cell is a horizontal wall (all walls are horizontal by default)
+                // And the previous cell is not
                 if(curCell == (int)cellTypes.HORZ_WALL &&
                     prevCell != (int)cellTypes.HORZ_WALL)
                 {
+                    // Check the next cell
                     if (y + 1 < map_height)
                     {
                         int nextCell = map[x, y + 1];
+                        // If the next cell is not a horizontal wall, make it a vertical wall
                         if (nextCell != (int)cellTypes.HORZ_WALL)
                             map[x, y] = (int)cellTypes.VERT_WALL;
+                    }
+                    else
+                    {
+                        map[x, y] = (int)cellTypes.VERT_WALL;
                     }
                 }
                 prevCell = curCell;
@@ -351,6 +355,7 @@ public class DungeonGenerator
         }
     }
 
+    /* Print a colorized number version of the map to the console */
     public void printColoredMap()
     {
         for (int i = 0; i < map_width; i++)
@@ -395,6 +400,7 @@ public class DungeonGenerator
         }
     }
 
+    /* Print the textual representation of the map */
     public void printTextMap()
     {
         for (int i = 0; i < map_width; i++)
@@ -439,6 +445,7 @@ public class DungeonGenerator
         }
     }
 
+    /* Print all rooms added to the map so far */
     private void printRooms()
     {
         int i = 0;
@@ -449,6 +456,7 @@ public class DungeonGenerator
         }
     }
 
+    /* Print a cell of a specific color to the console */
     public static void ColoredConsoleWrite(ConsoleColor color, int cellType)
     {
         ConsoleColor originalColor = Console.ForegroundColor;
@@ -459,17 +467,29 @@ public class DungeonGenerator
 
     public static void Main(string[] args)
     {
+        string usage = "\tUsage: $ DungeonGenerator.exe <width> <height> <seed>\n\tNote: Each dimension must be at least 3.\n\t\tAn average dimension size of 10 is optimal.";
+        if (args.Length < 3)
+        {
+            Console.WriteLine(usage);
+            System.Environment.Exit(1);
+        }
         int width = Convert.ToInt32(args[0]);
         int height = Convert.ToInt32(args[1]);
         int seed = Convert.ToInt32(args[2]);
-        //Console.WriteLine("width: {0}, height: {0}", width, height);
+
+        if(width < 3 || height < 3)
+        {
+            Console.WriteLine(usage);
+            System.Environment.Exit(1);
+        }
+
         DungeonGenerator generator = new DungeonGenerator(width, height, seed);
         generator.generateRooms();
         generator.connectRooms();
         generator.encodeRooms();
         generator.addWalls();
         generator.encodeWalls();
-        generator.printColoredMap();
+        //generator.printColoredMap();
         generator.printTextMap();
     }
 }
